@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Edu Fairuzullah LMS</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-container">
+            <h2>Edu Fairuzullah LMS</h2>
+            <div class="nav-user">
+                <span id="userName"></span>
+                <span id="userRole" class="role-badge"></span>
+                <button onclick="logout()" class="btn btn-secondary">Logout</button>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div id="dashboardContent">
+            <!-- Content will be loaded based on user role -->
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+    <script>
+        // Redirect based on role
+        window.onload = function() {
+            const currentUser = getCurrentUser();
+            if (!currentUser) {
+                window.location.href = 'index.html';
+                return;
+            }
+
+            document.getElementById('userName').textContent = currentUser.name;
+            const roleBadge = document.getElementById('userRole');
+            roleBadge.textContent = currentUser.role.charAt(0).toUpperCase() + currentUser.role.slice(1);
+            roleBadge.className = 'role-badge role-' + currentUser.role;
+
+            if (currentUser.role === 'educator') {
+                window.location.href = 'educator.html';
+            } else {
+                window.location.href = 'learner.html';
+            }
+        };
+    </script>
+</body>
+</html>
+

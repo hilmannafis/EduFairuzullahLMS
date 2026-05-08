@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Learner Dashboard - Edu Fairuzullah LMS</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-container">
+            <h2>Edu Fairuzullah LMS</h2>
+            <div class="nav-user">
+                <span id="userName"></span>
+                <span id="userRole" class="role-badge role-learner">Learner</span>
+                <button onclick="logout()" class="btn btn-secondary">Logout</button>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="dashboard-header">
+            <h1>Learner Dashboard</h1>
+        </div>
+
+        <div class="tabs">
+            <button class="tab-btn active" onclick="showTab('available')">Available Courses</button>
+            <button class="tab-btn" onclick="showTab('enrolled')">My Enrolled Courses</button>
+        </div>
+
+        <!-- Available Courses Tab -->
+        <div id="availableTab" class="tab-content active">
+            <div id="availableCoursesList" class="courses-grid">
+                <!-- Available courses will be loaded here -->
+            </div>
+        </div>
+
+        <!-- Enrolled Courses Tab -->
+        <div id="enrolledTab" class="tab-content">
+            <div id="enrolledCoursesList" class="courses-grid">
+                <!-- Enrolled courses will be loaded here -->
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+    <script>
+        // Check authentication
+        window.onload = async function() {
+            const currentUser = getCurrentUser();
+            if (!currentUser || currentUser.role !== 'learner') {
+                window.location.href = 'index.html';
+                return;
+            }
+
+            document.getElementById('userName').textContent = currentUser.name;
+            await loadAvailableCourses();
+            await loadEnrolledCourses();
+        };
+
+        function showTab(tabName) {
+            // Hide all tabs
+            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+
+            // Show selected tab
+            document.getElementById(tabName + 'Tab').classList.add('active');
+            event.target.classList.add('active');
+        }
+
+        async function loadAvailableCourses() {
+            try {
+                const allCourses = await getAllCourses();
+                const enrolledCourseIds = await getEnrolledCourseIds(getCurrentUser().id);
+                const availableCourses = allCourses.filter(course => !enrolledCourseIds.includes(course.id));
+                const container = document.getElementById('availableCoursesList');
+
+                if (availableCourses.length === 0) {
+                    container.innerHTML = '<p class="empty-state">No available courses at the moment.</p>';
+                    return;
+                }
+
+                container.innerHTML = availableCourses.map(course => `
+                    <div class="course-card">
+                        <h3>${escapeHtml(course.title)}</h3>
+                        <p class="course-category">${escapeHtml(course.category)}</p>
+                        <p class="course-description">${escapeHtml(course.description)}</p>
+                        <div class="course-meta">
+                            <span>Duration: ${course.duration} hours</span>
+                        </div>
+                        <div class="materials-list" id="materials-available-${course.id}">
+                            <em>Loading materials...</em>
+                        </div>
+                        <div class="course-actions">
+                            <button onclick="enrollInCourse(${course.id})" class="btn btn-sm btn-primary">Enroll</button>
+                        </div>
+                    </div>
+                `).join('');
+
+                // Load materials for each course
+                for (const course of availableCourses) {
+                    await loadMaterialsForCard(course.id, `materials-available-${course.id}`);
+                }
+            } catch (error) {
+                document.getElementById('availableCoursesList').innerHTML = '<p class="empty-state">Error loading courses. Please check if the server is running.</p>';
+            }
+        }
+
+        async function loadEnrolledCourses() {
+            try {
+                const enrolledCourseIds = await getEnrolledCourseIds(getCurrentUser().id);
+                const enrolledCourses = await Promise.all(
+                    enrolledCourseIds.map(id => getCourseById(id))
+                );
+                const validCourses = enrolledCourses.filter(c => c);
+                const container = document.getElementById('enrolledCoursesList');
+
+                if (validCourses.length === 0) {
+                    container.innerHTML = '<p class="empty-state">You have not enrolled in any courses yet.</p>';
+                    return;
+                }
+
+                container.innerHTML = validCourses.map(course => `
+                    <div class="course-card enrolled">
+                        <h3>${escapeHtml(course.title)}</h3>
+                        <p class="course-category">${escapeHtml(course.category)}</p>
+                        <p class="course-description">${escapeHtml(course.description)}</p>
+                        <div class="course-meta">
+                            <span>Duration: ${course.duration} hours</span>
+                        </div>
+                        <div class="materials-list" id="materials-enrolled-${course.id}">
+                            <em>Loading materials...</em>
+                        </div>
+                        <div class="course-actions">
+                            <button onclick="unenrollFromCourse(${course.id})" class="btn btn-sm btn-danger">Unenroll</button>
+                        </div>
+                    </div>
+                `).join('');
+
+                for (const course of validCourses) {
+                    await loadMaterialsForCard(course.id, `materials-enrolled-${course.id}`);
+                }
+            } catch (error) {
+                document.getElementById('enrolledCoursesList').innerHTML = '<p class="empty-state">Error loading enrolled courses. Please check if the server is running.</p>';
+            }
+        }
+
+        async function enrollInCourse(courseId) {
+            try {
+                await enrollUserInCourse(getCurrentUser().id, courseId);
+                alert('Successfully enrolled in course!');
+                await loadAvailableCourses();
+                await loadEnrolledCourses();
+            } catch (error) {
+                alert('Error enrolling in course: ' + error.message);
+            }
+        }
+
+        async function unenrollFromCourse(courseId) {
+            if (confirm('Are you sure you want to unenroll from this course?')) {
+                try {
+                    await unenrollUserFromCourse(getCurrentUser().id, courseId);
+                    alert('Successfully unenrolled from course!');
+                    await loadAvailableCourses();
+                    await loadEnrolledCourses();
+                } catch (error) {
+                    alert('Error unenrolling from course: ' + error.message);
+                }
+            }
+        }
+
+        async function loadMaterialsForCard(courseId, containerId) {
+            const el = document.getElementById(containerId);
+            if (!el) return;
+            try {
+                const materials = await getMaterials(courseId);
+                if (!materials || materials.length === 0) {
+                    el.innerHTML = '<em>No materials yet.</em>';
+                    return;
+                }
+                el.innerHTML = materials.map(m => `
+                    <div style="margin: 6px 0; padding: 6px; border-left: 3px solid #ffb6c1;">
+                        <div style="font-weight:600;color:#c71585;">${escapeHtml(m.title)}</div>
+                        <div style="font-size:0.9em;color:#d81b60;">${escapeHtml(m.description || '')}</div>
+                        <div><a href="${m.materialUrl}" target="_blank">Open material</a></div>
+                    </div>
+                `).join('');
+            } catch (error) {
+                el.innerHTML = `<em>Error loading materials: ${error.message}</em>`;
+            }
+        }
+    </script>
+</body>
+</html>
+

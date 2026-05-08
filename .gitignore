@@ -1,0 +1,34 @@
+# Dependencies
+node_modules/
+package-lock.json
+
+# Environment variables
+.env
+.env.local
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Build files
+dist/
+build/
+
+# Database credentials (if moved to .env)
+# db.js (if you move credentials to .env)
+
+# Credentials and local secrets
+*CREDENTIALS*.txt
+*CREDENTIALS*.md
+
+
